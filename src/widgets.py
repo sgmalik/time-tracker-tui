@@ -1,0 +1,264 @@
+"""Widget components for Time Tracker UI"""
+from textual.widgets import Static
+from datetime import datetime, timedelta
+from typing import Optional
+import calendar as cal
+from .data_store import DataStore
+from .models import TimeEntry
+
+
+class RecentTasksWidget(Static):
+    """Widget showing the 5 most recent tasks"""
+    
+    def __init__(self, data_store: DataStore):
+        super().__init__()
+        self.data_store = data_store
+
+    def render(self) -> str:
+        # Get all entries sorted by ID (timestamp) - most recent first
+        all_entries = []
+        for date in self.data_store.entries.keys():
+            for entry in self.data_store.entries[date]:
+                all_entries.append((date, entry))
+        
+        # Sort by entry ID (which is a timestamp) in descending order
+        all_entries.sort(key=lambda x: float(x[1].id), reverse=True)
+        
+        # Take the 5 most recent
+        recent = all_entries[:5]
+        
+        lines = []
+        lines.append("[bold cyan]━━━━━━━━━━━━━━━━━━━━━━ Recent Tasks ━━━━━━━━━━━━━━━━━━━━━━[/bold cyan]")
+        
+        if not recent:
+            lines.append("[dim]No tasks yet - press 'A' to add your first task[/dim]")
+        else:
+            for date_str, entry in recent:
+                hours = entry.duration_minutes // 60
+                minutes = entry.duration_minutes % 60
+                
+                # Format: "Mar 16: Task Name (Project) - 2h 30m"
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                date_display = date_obj.strftime("%b %d")
+                
+                # Create time display
+                time_str = f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+                
+                task_display = f"  {date_display}: [bold]{entry.task}[/bold] [dim]({entry.project})[/dim] [cyan]— {time_str}[/cyan]"
+                lines.append(task_display)
+        
+        return "\n".join(lines)
+
+
+class CalendarWidget(Static):
+    """A calendar widget showing a month view"""
+    
+    def __init__(self, data_store: DataStore):
+        super().__init__()
+        self.data_store = data_store
+        self.selected_date = datetime.now()
+        self.today = datetime.now()
+
+    def render(self) -> str:
+        year = self.selected_date.year
+        month = self.selected_date.month
+        
+        # Get month data
+        month_entries = self.data_store.get_entries_for_month(year, month)
+        total_hours = self.data_store.get_total_hours_for_month(year, month)
+        
+        # Build calendar
+        month_name = self.selected_date.strftime("%B %Y")
+        lines = []
+        lines.append(f"[bold cyan]{month_name}[/bold cyan]  (Total: {total_hours:.1f}h)")
+        lines.append("")
+        
+        # Day headers
+        lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        header = "|" + "|".join(f"{name:^10}" for name in day_names) + "|"
+        lines.append(f"[bold]{header}[/bold]")
+        lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        
+        # Calendar days
+        month_cal = cal.monthcalendar(year, month)
+        for week_idx, week in enumerate(month_cal):
+            week_lines = ["", "", ""]  # 3 lines per week
+            
+            for day in week:
+                if day == 0:
+                    # Empty cell - exactly 10 characters
+                    week_lines[0] += "|          "
+                    week_lines[1] += "|          "
+                    week_lines[2] += "|          "
+                else:
+                    date_str = f"{year}-{month:02d}-{day:02d}"
+                    has_entries = date_str in month_entries
+                    
+                    # Check if selected
+                    is_selected = (day == self.selected_date.day and 
+                                 month == self.selected_date.month and 
+                                 year == self.selected_date.year)
+                    
+                    # Check if today
+                    is_today = (day == self.today.day and 
+                              month == self.today.month and 
+                              year == self.today.year)
+                    
+                    # Format day number - properly center in 10 chars
+                    if is_selected:
+                        # [9] = 3 chars, [16] = 4 chars - center appropriately
+                        if day < 10:
+                            day_str = f"[{day}]"  # 3 chars
+                            week_lines[0] += f"|   [bold green]{day_str}    [/bold green]"  # 3+3+4=10
+                        else:
+                            day_str = f"[{day}]"  # 4 chars
+                            week_lines[0] += f"|   [bold green]{day_str}   [/bold green]"  # 3+4+3=10
+                    elif is_today:
+                        # <9> = 3 chars, <16> = 4 chars - center appropriately
+                        if day < 10:
+                            day_str = f"<{day}>"  # 3 chars
+                            week_lines[0] += f"|   [bold red]{day_str}    [/bold red]"  # 3+3+4=10
+                        else:
+                            day_str = f"<{day}>"  # 4 chars
+                            week_lines[0] += f"|   [bold red]{day_str}   [/bold red]"  # 3+4+3=10
+                    else:
+                        # 9 = 1 char, 16 = 2 chars - center in 10
+                        if day < 10:
+                            week_lines[0] += f"|    {day}     "  # 4+1+5=10
+                        else:
+                            week_lines[0] += f"|    {day}    "  # 4+2+4=10
+                    
+                    # Line 1: indicator
+                    if has_entries:
+                        week_lines[1] += "|[cyan]    *     [/cyan]"
+                    else:
+                        week_lines[1] += "|          "
+                    
+                    # Line 2: empty
+                    week_lines[2] += "|          "
+            
+            # Add closing borders
+            for i in range(3):
+                week_lines[i] += "|"
+                lines.append(week_lines[i])
+            
+            # Add separator between weeks (but not after last week)
+            if week_idx < len(month_cal) - 1:
+                lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        
+        # Bottom border
+        lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        
+        return "\n".join(lines)
+
+    def move_day(self, delta: int):
+        """Move selection by days"""
+        self.selected_date += timedelta(days=delta)
+        self.refresh()
+
+    def move_week(self, delta: int):
+        """Move selection by weeks"""
+        self.selected_date += timedelta(weeks=delta)
+        self.refresh()
+
+    def move_month(self, delta: int):
+        """Move selection by months"""
+        month = self.selected_date.month + delta
+        year = self.selected_date.year
+        
+        while month > 12:
+            month -= 12
+            year += 1
+        while month < 1:
+            month += 12
+            year -= 1
+        
+        # Handle day overflow (e.g., Jan 31 -> Feb 31 doesn't exist)
+        day = min(self.selected_date.day, cal.monthrange(year, month)[1])
+        self.selected_date = datetime(year, month, day)
+        self.refresh()
+
+    def go_to_today(self):
+        """Jump to today's date"""
+        self.selected_date = datetime.now()
+        self.refresh()
+
+
+class TaskListWidget(Static):
+    """Widget showing tasks for a specific day"""
+    
+    def __init__(self, data_store: DataStore):
+        super().__init__()
+        self.data_store = data_store
+        self.date = datetime.now()
+        self.selected_index = 0
+
+    def set_date(self, date: datetime):
+        """Set the date to display tasks for"""
+        self.date = date
+        self.selected_index = 0
+        self.refresh()
+
+    def render(self) -> str:
+        date_str = self.date.strftime("%A, %B %d, %Y")
+        entries = self.data_store.get_entries_for_date(self.date.strftime("%Y-%m-%d"))
+        
+        lines = []
+        lines.append(f"[bold cyan]Tasks for {date_str}[/bold cyan]")
+        lines.append("─" * 80)
+        
+        if not entries:
+            lines.append("[dim]  No tasks for this day[/dim]")
+            lines.append("[dim]  Press 'A' to add a task[/dim]")
+        else:
+            total_minutes = sum(e.duration_minutes for e in entries)
+            hours = total_minutes // 60
+            minutes = total_minutes % 60
+            lines.append(f"[bold cyan]  Total: {hours}h {minutes}m[/bold cyan]")
+            lines.append("")
+            
+            for i, entry in enumerate(entries):
+                prefix = "► " if i == self.selected_index else "  "
+                
+                hours = entry.duration_minutes // 60
+                minutes = entry.duration_minutes % 60
+                
+                if i == self.selected_index:
+                    task_line = f"{prefix}[bold green]{entry.task}[/bold green]"
+                else:
+                    task_line = f"{prefix}{entry.task}"
+                
+                lines.append(task_line)
+                
+                details = f"    Project: {entry.project} | Duration: {hours}h {minutes}m"
+                if i == self.selected_index:
+                    lines.append(f"[green]{details}[/green]")
+                else:
+                    lines.append(f"[dim]{details}[/dim]")
+                
+                # Add description if it exists
+                if entry.description:
+                    desc_text = f"    Description: {entry.description}"
+                    if i == self.selected_index:
+                        lines.append(f"[green]{desc_text}[/green]")
+                    else:
+                        lines.append(f"[dim]{desc_text}[/dim]")
+                
+                lines.append("")
+        
+        return "\n".join(lines)
+
+    def move_selection(self, delta: int):
+        """Move task selection up or down"""
+        entries = self.data_store.get_entries_for_date(self.date.strftime("%Y-%m-%d"))
+        if entries:
+            self.selected_index = max(0, min(len(entries) - 1, self.selected_index + delta))
+            self.refresh()
+
+    def get_selected_entry(self) -> Optional[TimeEntry]:
+        """Get the currently selected entry"""
+        entries = self.data_store.get_entries_for_date(self.date.strftime("%Y-%m-%d"))
+        if 0 <= self.selected_index < len(entries):
+            return entries[self.selected_index]
+        return None

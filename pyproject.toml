@@ -1,0 +1,21 @@
+[project]
+name = "time-tracker"
+version = "0.1.0"
+description = "Terminal UI for time tracking and task management"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "textual>=0.47.0",
+]
+
+[project.scripts]
+time-tracker = "main:main"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
