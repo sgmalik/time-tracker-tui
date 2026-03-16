@@ -1,5 +1,6 @@
 """Widget components for Time Tracker UI"""
 from textual.widgets import Static
+from textual.containers import ScrollableContainer
 from datetime import datetime, timedelta
 from typing import Optional
 import calendar as cal
@@ -67,30 +68,30 @@ class CalendarWidget(Static):
         month_entries = self.data_store.get_entries_for_month(year, month)
         total_hours = self.data_store.get_total_hours_for_month(year, month)
         
-        # Build calendar
+        # Build calendar with even larger cells to fill screen better
+        cell_width = 20
         month_name = self.selected_date.strftime("%B %Y")
         lines = []
         lines.append(f"[bold cyan]{month_name}[/bold cyan]  (Total: {total_hours:.1f}h)")
         lines.append("")
         
         # Day headers
-        lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        lines.append("+" + ("-" * cell_width + "+") * 7)
         day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        header = "|" + "|".join(f"{name:^10}" for name in day_names) + "|"
+        header = "|" + "|".join(f"{name:^{cell_width}}" for name in day_names) + "|"
         lines.append(f"[bold]{header}[/bold]")
-        lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        lines.append("+" + ("-" * cell_width + "+") * 7)
         
         # Calendar days
         month_cal = cal.monthcalendar(year, month)
         for week_idx, week in enumerate(month_cal):
-            week_lines = ["", "", ""]  # 3 lines per week
+            week_lines = ["", "", "", ""]  # 4 lines per week for more space
             
             for day in week:
                 if day == 0:
-                    # Empty cell - exactly 10 characters
-                    week_lines[0] += "|          "
-                    week_lines[1] += "|          "
-                    week_lines[2] += "|          "
+                    # Empty cell
+                    for i in range(4):
+                        week_lines[i] += "|" + " " * cell_width
                 else:
                     date_str = f"{year}-{month:02d}-{day:02d}"
                     has_entries = date_str in month_entries
@@ -105,50 +106,39 @@ class CalendarWidget(Static):
                               month == self.today.month and 
                               year == self.today.year)
                     
-                    # Format day number - properly center in 10 chars
+                    # Line 0: empty space
+                    week_lines[0] += "|" + " " * cell_width
+                    
+                    # Line 1: Format day number - center in cell_width
                     if is_selected:
-                        # [9] = 3 chars, [16] = 4 chars - center appropriately
-                        if day < 10:
-                            day_str = f"[{day}]"  # 3 chars
-                            week_lines[0] += f"|   [bold green]{day_str}    [/bold green]"  # 3+3+4=10
-                        else:
-                            day_str = f"[{day}]"  # 4 chars
-                            week_lines[0] += f"|   [bold green]{day_str}   [/bold green]"  # 3+4+3=10
+                        day_str = f"[{day}]"
+                        week_lines[1] += f"|[bold green]{day_str:^{cell_width}}[/bold green]"
                     elif is_today:
-                        # <9> = 3 chars, <16> = 4 chars - center appropriately
-                        if day < 10:
-                            day_str = f"<{day}>"  # 3 chars
-                            week_lines[0] += f"|   [bold red]{day_str}    [/bold red]"  # 3+3+4=10
-                        else:
-                            day_str = f"<{day}>"  # 4 chars
-                            week_lines[0] += f"|   [bold red]{day_str}   [/bold red]"  # 3+4+3=10
+                        day_str = f"<{day}>"
+                        week_lines[1] += f"|[bold red]{day_str:^{cell_width}}[/bold red]"
                     else:
-                        # 9 = 1 char, 16 = 2 chars - center in 10
-                        if day < 10:
-                            week_lines[0] += f"|    {day}     "  # 4+1+5=10
-                        else:
-                            week_lines[0] += f"|    {day}    "  # 4+2+4=10
+                        week_lines[1] += f"|{day:^{cell_width}}"
                     
-                    # Line 1: indicator
+                    # Line 2: indicator
                     if has_entries:
-                        week_lines[1] += "|[cyan]    *     [/cyan]"
+                        week_lines[2] += f"|[cyan]{'*':^{cell_width}}[/cyan]"
                     else:
-                        week_lines[1] += "|          "
+                        week_lines[2] += "|" + " " * cell_width
                     
-                    # Line 2: empty
-                    week_lines[2] += "|          "
+                    # Line 3: empty space
+                    week_lines[3] += "|" + " " * cell_width
             
             # Add closing borders
-            for i in range(3):
+            for i in range(4):
                 week_lines[i] += "|"
                 lines.append(week_lines[i])
             
             # Add separator between weeks (but not after last week)
             if week_idx < len(month_cal) - 1:
-                lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+                lines.append("+" + ("-" * cell_width + "+") * 7)
         
         # Bottom border
-        lines.append("+" + "-" * 10 + ("+" + "-" * 10) * 6 + "+")
+        lines.append("+" + ("-" * cell_width + "+") * 7)
         
         return "\n".join(lines)
 
@@ -185,7 +175,7 @@ class CalendarWidget(Static):
         self.refresh()
 
 
-class TaskListWidget(Static):
+class TaskListWidget(ScrollableContainer):
     """Widget showing tasks for a specific day"""
     
     def __init__(self, data_store: DataStore):
@@ -193,29 +183,39 @@ class TaskListWidget(Static):
         self.data_store = data_store
         self.date = datetime.now()
         self.selected_index = 0
+        self.content_widget = Static()
+
+    def compose(self):
+        """Compose with static content inside"""
+        yield self.content_widget
+
+    def on_mount(self):
+        """Initial render when mounted"""
+        self.update_display()
 
     def set_date(self, date: datetime):
         """Set the date to display tasks for"""
         self.date = date
         self.selected_index = 0
-        self.refresh()
+        self.update_display()
 
-    def render(self) -> str:
+    def update_display(self):
+        """Update the content display"""
         date_str = self.date.strftime("%A, %B %d, %Y")
         entries = self.data_store.get_entries_for_date(self.date.strftime("%Y-%m-%d"))
         
         lines = []
         lines.append(f"[bold cyan]Tasks for {date_str}[/bold cyan]")
-        lines.append("─" * 80)
+        lines.append("─" * 40)
         
         if not entries:
-            lines.append("[dim]  No tasks for this day[/dim]")
-            lines.append("[dim]  Press 'A' to add a task[/dim]")
+            lines.append("[dim]  No tasks[/dim]")
+            lines.append("[dim]  Press 'A' to add[/dim]")
         else:
             total_minutes = sum(e.duration_minutes for e in entries)
             hours = total_minutes // 60
             minutes = total_minutes % 60
-            lines.append(f"[bold cyan]  Total: {hours}h {minutes}m[/bold cyan]")
+            lines.append(f"[bold cyan]Total: {hours}h {minutes}m[/bold cyan]")
             lines.append("")
             
             for i, entry in enumerate(entries):
@@ -231,15 +231,14 @@ class TaskListWidget(Static):
                 
                 lines.append(task_line)
                 
-                details = f"    Project: {entry.project} | Duration: {hours}h {minutes}m"
+                details = f"  {entry.project} | {hours}h {minutes}m"
                 if i == self.selected_index:
                     lines.append(f"[green]{details}[/green]")
                 else:
                     lines.append(f"[dim]{details}[/dim]")
                 
-                # Add description if it exists
                 if entry.description:
-                    desc_text = f"    Description: {entry.description}"
+                    desc_text = f"  {entry.description[:35]}..."
                     if i == self.selected_index:
                         lines.append(f"[green]{desc_text}[/green]")
                     else:
@@ -247,14 +246,22 @@ class TaskListWidget(Static):
                 
                 lines.append("")
         
-        return "\n".join(lines)
+        self.content_widget.update("\n".join(lines))
+        
+        # Auto-scroll to selected item
+        if entries and self.selected_index < len(entries):
+            # Calculate approximate line position
+            header_lines = 4
+            lines_per_entry = 4
+            target_line = header_lines + (self.selected_index * lines_per_entry)
+            self.scroll_to(y=target_line, animate=True)
 
     def move_selection(self, delta: int):
         """Move task selection up or down"""
         entries = self.data_store.get_entries_for_date(self.date.strftime("%Y-%m-%d"))
         if entries:
             self.selected_index = max(0, min(len(entries) - 1, self.selected_index + delta))
-            self.refresh()
+            self.update_display()
 
     def get_selected_entry(self) -> Optional[TimeEntry]:
         """Get the currently selected entry"""

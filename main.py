@@ -1,6 +1,7 @@
 """Time Tracker - A TUI application for tracking time spent on tasks"""
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer
+from textual.containers import Horizontal
 from textual.binding import Binding
 
 from src.data_store import DataStore
@@ -14,11 +15,10 @@ class TimeTrackerApp(App):
     CSS = """
     Screen {
         layout: vertical;
-        align: center middle;
     }
     
     RecentTasksWidget {
-        width: 80;
+        width: 100%;
         height: 7;
         min-height: 7;
         margin-bottom: 1;
@@ -29,17 +29,24 @@ class TimeTrackerApp(App):
         padding: 0 1;
     }
     
-    CalendarWidget {
-        width: 80;
-        height: auto;
-        margin-bottom: 1;
-        text-align: center;
+    #main-container {
+        width: 100%;
+        height: 1fr;
+        padding: 0;
     }
     
     TaskListWidget {
-        width: 80;
+        width: 25%;
         height: 1fr;
-        overflow-y: auto;
+        margin-right: 3;
+        border: solid $primary;
+        padding: 1;
+    }
+    
+    CalendarWidget {
+        width: 75%;
+        height: auto;
+        padding: 0;
     }
     
     #add-task-container {
@@ -92,11 +99,14 @@ class TimeTrackerApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         self.recent_tasks_widget = RecentTasksWidget(self.data_store)
-        self.calendar_widget = CalendarWidget(self.data_store)
-        self.task_list_widget = TaskListWidget(self.data_store)
         yield self.recent_tasks_widget
-        yield self.calendar_widget
-        yield self.task_list_widget
+        
+        with Horizontal(id="main-container"):
+            self.task_list_widget = TaskListWidget(self.data_store)
+            self.calendar_widget = CalendarWidget(self.data_store)
+            yield self.task_list_widget
+            yield self.calendar_widget
+        
         yield Footer()
 
     def refresh_all_widgets(self):
@@ -104,7 +114,7 @@ class TimeTrackerApp(App):
         # Update task list to match selected date
         if self.task_list_widget and self.calendar_widget:
             self.task_list_widget.date = self.calendar_widget.selected_date
-            self.task_list_widget.refresh()
+            self.task_list_widget.update_display()
         
         # Force refresh all widgets with full re-render
         if self.recent_tasks_widget:
