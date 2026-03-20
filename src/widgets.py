@@ -16,14 +16,14 @@ class RecentTasksWidget(Static):
         self.data_store = data_store
 
     def render(self) -> str:
-        # Get all entries sorted by ID (timestamp) - most recent first
+        # Get all entries with their date and start time
         all_entries = []
         for date in self.data_store.entries.keys():
             for entry in self.data_store.entries[date]:
                 all_entries.append((date, entry))
         
-        # Sort by entry ID (which is a timestamp) in descending order
-        all_entries.sort(key=lambda x: float(x[1].id), reverse=True)
+        # Sort by date (descending) then by start_time (descending) - most recent first
+        all_entries.sort(key=lambda x: (x[0], x[1].start_time), reverse=True)
         
         # Take the 5 most recent
         recent = all_entries[:5]
@@ -35,17 +35,20 @@ class RecentTasksWidget(Static):
             lines.append("[dim]No tasks yet - press 'A' to add your first task[/dim]")
         else:
             for date_str, entry in recent:
-                hours = entry.duration_minutes // 60
-                minutes = entry.duration_minutes % 60
-                
-                # Format: "Mar 16: Task Name (Project) - 2h 30m"
+                # Format date
                 date_obj = datetime.strptime(date_str, "%Y-%m-%d")
                 date_display = date_obj.strftime("%b %d")
                 
-                # Create time display
-                time_str = f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+                # Format time display with duration
+                if entry.end_time:
+                    hours = entry.duration_minutes // 60
+                    minutes = entry.duration_minutes % 60
+                    duration_str = f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+                    time_display = f"{entry.start_time}-{entry.end_time} [cyan]({duration_str})[/cyan]"
+                else:
+                    time_display = f"{entry.start_time}-... [yellow](in progress)[/yellow]"
                 
-                task_display = f"  {date_display}: [bold]{entry.task}[/bold] [dim]({entry.project})[/dim] [cyan]— {time_str}[/cyan]"
+                task_display = f"  {date_display} {time_display}: [bold]{entry.task}[/bold] [dim]({entry.project})[/dim]"
                 lines.append(task_display)
         
         return "\n".join(lines)
@@ -231,11 +234,20 @@ class TaskListWidget(ScrollableContainer):
                 
                 lines.append(task_line)
                 
-                details = f"  {entry.project} | {hours}h {minutes}m"
+                # Show start-end times and duration in military time
+                if entry.end_time:
+                    time_info = f"  {entry.start_time}-{entry.end_time}"
+                    details = f"{time_info} ({hours}h {minutes}m)"
+                else:
+                    # In progress task
+                    time_info = f"  {entry.start_time}-..."
+                    details = f"{time_info} [yellow](in progress)[/yellow]"
                 if i == self.selected_index:
                     lines.append(f"[green]{details}[/green]")
+                    lines.append(f"[green]  {entry.project}[/green]")
                 else:
                     lines.append(f"[dim]{details}[/dim]")
+                    lines.append(f"[dim]  {entry.project}[/dim]")
                 
                 if entry.description:
                     desc_text = f"  {entry.description[:35]}..."
@@ -252,7 +264,7 @@ class TaskListWidget(ScrollableContainer):
         if entries and self.selected_index < len(entries):
             # Calculate approximate line position
             header_lines = 4
-            lines_per_entry = 4
+            lines_per_entry = 5
             target_line = header_lines + (self.selected_index * lines_per_entry)
             self.scroll_to(y=target_line, animate=True)
 

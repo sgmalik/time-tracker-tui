@@ -32,10 +32,10 @@ class AddTaskScreen(Screen):
             yield Input(placeholder="Which project?", id="project-input")
             yield Label("Description:")
             yield Input(placeholder="Additional details (optional)", id="description-input")
-            yield Label("Hours:")
-            yield Input(placeholder="0", id="hours-input")
-            yield Label("Minutes:")
-            yield Input(placeholder="0", id="minutes-input")
+            yield Label("Start Time (24hr HH:MM):")
+            yield Input(placeholder="08:30", id="start-time-input")
+            yield Label("End Time (24hr HH:MM):")
+            yield Input(placeholder="09:00", id="end-time-input")
             with Horizontal():
                 yield Button("Save", variant="success", id="save-button")
                 yield Button("Cancel", variant="error", id="cancel-button")
@@ -60,28 +60,36 @@ class AddTaskScreen(Screen):
         task_input = self.query_one("#task-input", Input)
         project_input = self.query_one("#project-input", Input)
         description_input = self.query_one("#description-input", Input)
-        hours_input = self.query_one("#hours-input", Input)
-        minutes_input = self.query_one("#minutes-input", Input)
+        start_time_input = self.query_one("#start-time-input", Input)
+        end_time_input = self.query_one("#end-time-input", Input)
         
         task = task_input.value.strip()
         project = project_input.value.strip()
         description = description_input.value.strip()
+        start_time = start_time_input.value.strip()
+        end_time = end_time_input.value.strip()
         
         if not task or not project:
             self.notify("Task and Project are required!", severity="error")
             return
         
-        try:
-            hours = int(hours_input.value or "0")
-            minutes = int(minutes_input.value or "0")
-        except ValueError:
-            self.notify("Invalid hours or minutes!", severity="error")
+        if not start_time or not end_time:
+            self.notify("Start and End times are required!", severity="error")
             return
         
-        total_minutes = hours * 60 + minutes
+        # Validate time format
+        try:
+            datetime.strptime(start_time, "%H:%M")
+            datetime.strptime(end_time, "%H:%M")
+        except ValueError:
+            self.notify("Invalid time format! Use 24hr HH:MM (e.g., 08:30)", severity="error")
+            return
         
-        if total_minutes == 0:
-            self.notify("Duration must be greater than 0!", severity="error")
+        # Validate end time is after start time
+        start_dt = datetime.strptime(start_time, "%H:%M")
+        end_dt = datetime.strptime(end_time, "%H:%M")
+        if end_dt <= start_dt:
+            self.notify("End time must be after start time!", severity="error")
             return
         
         entry = TimeEntry(
@@ -89,7 +97,8 @@ class AddTaskScreen(Screen):
             date=self.date.strftime("%Y-%m-%d"),
             task=task,
             project=project,
-            duration_minutes=total_minutes,
+            start_time=start_time,
+            end_time=end_time,
             description=description
         )
         
