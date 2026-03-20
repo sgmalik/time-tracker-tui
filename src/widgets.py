@@ -8,6 +8,15 @@ from .data_store import DataStore
 from .models import TimeEntry
 
 
+def military_to_12hour(time_str: str) -> str:
+    """Convert military time (HH:MM) to 12-hour format (H:MM AM/PM)"""
+    try:
+        time_obj = datetime.strptime(time_str, "%H:%M")
+        return time_obj.strftime("%-I:%M %p")  # %-I removes leading zero
+    except:
+        return time_str
+
+
 class RecentTasksWidget(Static):
     """Widget showing the 5 most recent tasks"""
     
@@ -44,9 +53,12 @@ class RecentTasksWidget(Static):
                     hours = entry.duration_minutes // 60
                     minutes = entry.duration_minutes % 60
                     duration_str = f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
-                    time_display = f"{entry.start_time}-{entry.end_time} [cyan]({duration_str})[/cyan]"
+                    start_12h = military_to_12hour(entry.start_time)
+                    end_12h = military_to_12hour(entry.end_time)
+                    time_display = f"{start_12h}-{end_12h} [cyan]({duration_str})[/cyan]"
                 else:
-                    time_display = f"{entry.start_time}-... [yellow](in progress)[/yellow]"
+                    start_12h = military_to_12hour(entry.start_time)
+                    time_display = f"{start_12h}-... [yellow](in progress)[/yellow]"
                 
                 task_display = f"  {date_display} {time_display}: [bold]{entry.task}[/bold] [dim]({entry.project})[/dim]"
                 lines.append(task_display)
@@ -234,13 +246,16 @@ class TaskListWidget(ScrollableContainer):
                 
                 lines.append(task_line)
                 
-                # Show start-end times and duration in military time
+                # Show start-end times and duration in 12-hour format
                 if entry.end_time:
-                    time_info = f"  {entry.start_time}-{entry.end_time}"
+                    start_12h = military_to_12hour(entry.start_time)
+                    end_12h = military_to_12hour(entry.end_time)
+                    time_info = f"  {start_12h}-{end_12h}"
                     details = f"{time_info} ({hours}h {minutes}m)"
                 else:
                     # In progress task
-                    time_info = f"  {entry.start_time}-..."
+                    start_12h = military_to_12hour(entry.start_time)
+                    time_info = f"  {start_12h}-..."
                     details = f"{time_info} [yellow](in progress)[/yellow]"
                 if i == self.selected_index:
                     lines.append(f"[green]{details}[/green]")
