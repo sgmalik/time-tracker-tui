@@ -1,0 +1,29 @@
+/* Time Tracker Styles */
+
+/* Hide elements with hidden class */
+.hidden {
+    display: none;
+}
+
+/* Add task form styling */
+#add-task-container {
+    padding: 1 2;
+}
+
+#form-title {
+    padding: 1 0;
+}
+
+/* Input styling */
+Input {
+    margin: 0 0 1 0;
+}
+
+Select {
+    margin: 0 0 1 0;
+}
+
+/* Button styling */
+Button {
+    margin: 1 1 0 1;
+}

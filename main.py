@@ -17,6 +17,10 @@ class TimeTrackerApp(App):
         layout: vertical;
     }
     
+    .hidden {
+        display: none;
+    }
+    
     RecentTasksWidget {
         width: 100%;
         height: 7;
