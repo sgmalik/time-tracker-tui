@@ -74,6 +74,8 @@ class CalendarWidget(Static):
         self.data_store = data_store
         self.selected_date = datetime.now()
         self.today = datetime.now()
+        # Set calendar to start on Sunday
+        cal.setfirstweekday(cal.SUNDAY)
 
     def render(self) -> str:
         year = self.selected_date.year
