@@ -1,4 +1,5 @@
 """Edit Task Screen - for modifying existing time entries"""
+
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.widgets import Header, Footer, Label, Input, Button, Select
@@ -17,17 +18,17 @@ STANDARD_PROJECTS = [
     "SCE-POC",
     "DEV-MEETING",
     "ADMIN",
-    "[+ Add New Project]"
+    "[+ Add New Project]",
 ]
 
 
 class EditTaskScreen(Screen):
     """Screen for editing an existing task"""
-    
+
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
     ]
-    
+
     def __init__(self, data_store: DataStore, entry: TimeEntry, callback=None):
         super().__init__()
         self.data_store = data_store
@@ -40,7 +41,7 @@ class EditTaskScreen(Screen):
         for entries in self.data_store.entries.values():
             for entry in entries:
                 all_projects.add(entry.project)
-        
+
         # Combine standard projects with any custom ones
         project_options = list(set(STANDARD_PROJECTS + list(all_projects)))
         project_options.sort()
@@ -48,29 +49,52 @@ class EditTaskScreen(Screen):
         if "[+ Add New Project]" in project_options:
             project_options.remove("[+ Add New Project]")
         project_options.append("[+ Add New Project]")
-        
+
         # Determine initial value for project select
         if self.entry.project in project_options:
             initial_project = self.entry.project
         else:
             # If current project not in list, add it
-            project_options.insert(-1, self.entry.project)  # Insert before "[+ Add New Project]"
+            project_options.insert(
+                -1, self.entry.project
+            )  # Insert before "[+ Add New Project]"
             initial_project = self.entry.project
-        
+
         yield Header()
         with Container(id="add-task-container"):
             yield Label("[bold cyan]Edit Task[/bold cyan]", id="form-title")
             yield Label("Task:")
-            yield Input(value=self.entry.task, placeholder="What did you work on?", id="task-input")
+            yield Input(
+                value=self.entry.task,
+                placeholder="What did you work on?",
+                id="task-input",
+            )
             yield Label("Project:")
-            yield Select([(proj, proj) for proj in project_options], id="project-select", allow_blank=False, value=initial_project)
-            yield Input(placeholder="Custom project name", id="custom-project-input", classes="hidden")
+            yield Select(
+                [(proj, proj) for proj in project_options],
+                id="project-select",
+                allow_blank=False,
+                value=initial_project,
+            )
+            yield Input(
+                placeholder="Custom project name",
+                id="custom-project-input",
+                classes="hidden",
+            )
             yield Label("Description:")
-            yield Input(value=self.entry.description, placeholder="Additional details (optional)", id="description-input")
+            yield Input(
+                value=self.entry.description,
+                placeholder="Additional details (optional)",
+                id="description-input",
+            )
             yield Label("Start Time (24hr HH:MM):")
-            yield Input(value=self.entry.start_time, placeholder="08:30", id="start-time-input")
+            yield Input(
+                value=self.entry.start_time, placeholder="08:30", id="start-time-input"
+            )
             yield Label("End Time (24hr HH:MM):")
-            yield Input(value=self.entry.end_time, placeholder="09:00", id="end-time-input")
+            yield Input(
+                value=self.entry.end_time, placeholder="09:00", id="end-time-input"
+            )
             with Horizontal():
                 yield Button("Save", variant="success", id="save-button")
                 yield Button("Cancel", variant="error", id="cancel-button")
@@ -109,9 +133,9 @@ class EditTaskScreen(Screen):
         description_input = self.query_one("#description-input", Input)
         start_time_input = self.query_one("#start-time-input", Input)
         end_time_input = self.query_one("#end-time-input", Input)
-        
+
         task = task_input.value.strip()
-        
+
         # Get project from either select or custom input
         if project_select.value == "[+ Add New Project]":
             project = custom_project_input.value.strip()
@@ -120,34 +144,36 @@ class EditTaskScreen(Screen):
                 return
         else:
             project = project_select.value
-        
+
         description = description_input.value.strip()
         start_time = start_time_input.value.strip()
         end_time = end_time_input.value.strip()
-        
+
         if not task or not project:
             self.notify("Task and Project are required!", severity="error")
             return
-        
+
         if not start_time or not end_time:
             self.notify("Start and End times are required!", severity="error")
             return
-        
+
         # Validate time format
         try:
             datetime.strptime(start_time, "%H:%M")
             datetime.strptime(end_time, "%H:%M")
         except ValueError:
-            self.notify("Invalid time format! Use 24hr HH:MM (e.g., 08:30)", severity="error")
+            self.notify(
+                "Invalid time format! Use 24hr HH:MM (e.g., 08:30)", severity="error"
+            )
             return
-        
+
         # Validate end time is after start time
         start_dt = datetime.strptime(start_time, "%H:%M")
         end_dt = datetime.strptime(end_time, "%H:%M")
         if end_dt <= start_dt:
             self.notify("End time must be after start time!", severity="error")
             return
-        
+
         # Update the existing entry
         self.data_store.update_entry(
             self.entry.id,
@@ -155,9 +181,9 @@ class EditTaskScreen(Screen):
             project=project,
             description=description,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
-        
+
         self.notify(f"Updated task: {task}", severity="information")
         if self.callback:
             self.callback(True)

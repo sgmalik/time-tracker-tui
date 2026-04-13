@@ -1,18 +1,27 @@
 """Data models for the Time Tracker application"""
+
 from datetime import datetime
 
 
 class TimeEntry:
     """Represents a single time tracking entry"""
-    
-    def __init__(self, id: str, date: str, task: str, project: str, 
-                 start_time: str, end_time: str, description: str = ""):
+
+    def __init__(
+        self,
+        id: str,
+        date: str,
+        task: str,
+        project: str,
+        start_time: str,
+        end_time: str,
+        description: str = "",
+    ):
         self.id = id
         self.date = date  # YYYY-MM-DD
         self.task = task
         self.project = project
         self.start_time = start_time  # HH:MM format (e.g., "09:30")
-        self.end_time = end_time      # HH:MM format (e.g., "10:00")
+        self.end_time = end_time  # HH:MM format (e.g., "10:00")
         self.description = description
 
     @property
@@ -32,13 +41,13 @@ class TimeEntry:
     def to_dict(self):
         """Convert to dictionary for JSON serialization"""
         return {
-            'id': self.id,
-            'date': self.date,
-            'task': self.task,
-            'project': self.project,
-            'start_time': self.start_time,
-            'end_time': self.end_time,
-            'description': self.description
+            "id": self.id,
+            "date": self.date,
+            "task": self.task,
+            "project": self.project,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "description": self.description,
         }
 
     @classmethod

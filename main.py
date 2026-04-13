@@ -1,4 +1,5 @@
 """Time Tracker - A TUI application for tracking time spent on tasks"""
+
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer
 from textual.containers import Horizontal
@@ -11,7 +12,7 @@ from src.screens import AddTaskScreen, EditTaskScreen
 
 class TimeTrackerApp(App):
     """Time tracking TUI application"""
-    
+
     CSS = """
     Screen {
         layout: vertical;
@@ -74,7 +75,7 @@ class TimeTrackerApp(App):
         margin-top: 1;
     }
     """
-    
+
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("a", "add_task", "Add Task"),
@@ -92,7 +93,7 @@ class TimeTrackerApp(App):
         Binding("w", "task_up", "Task ↑", show=False),
         Binding("x", "task_down", "Task ↓", show=False),
     ]
-    
+
     def __init__(self):
         super().__init__()
         self.data_store = DataStore()
@@ -104,13 +105,13 @@ class TimeTrackerApp(App):
         yield Header()
         self.recent_tasks_widget = RecentTasksWidget(self.data_store)
         yield self.recent_tasks_widget
-        
+
         with Horizontal(id="main-container"):
             self.task_list_widget = TaskListWidget(self.data_store)
             self.calendar_widget = CalendarWidget(self.data_store)
             yield self.task_list_widget
             yield self.calendar_widget
-        
+
         yield Footer()
 
     def refresh_all_widgets(self):
@@ -119,7 +120,7 @@ class TimeTrackerApp(App):
         if self.task_list_widget and self.calendar_widget:
             self.task_list_widget.date = self.calendar_widget.selected_date
             self.task_list_widget.update_display()
-        
+
         # Force refresh all widgets with full re-render
         if self.recent_tasks_widget:
             self.recent_tasks_widget.refresh()
@@ -128,22 +129,26 @@ class TimeTrackerApp(App):
 
     def action_add_task(self):
         """Open the add task screen with callback"""
+
         def on_add_complete(saved: bool):
             if saved:
                 self.refresh_all_widgets()
-        
+
         self.push_screen(
-            AddTaskScreen(self.data_store, self.calendar_widget.selected_date, on_add_complete)
+            AddTaskScreen(
+                self.data_store, self.calendar_widget.selected_date, on_add_complete
+            )
         )
 
     def action_edit_task(self):
         """Open the edit task screen with callback"""
         entry = self.task_list_widget.get_selected_entry()
         if entry:
+
             def on_edit_complete(saved: bool):
                 if saved:
                     self.refresh_all_widgets()
-            
+
             self.push_screen(EditTaskScreen(self.data_store, entry, on_edit_complete))
         else:
             self.notify("No task selected to edit", severity="warning")
