@@ -92,8 +92,10 @@ class CalendarWidget(Static):
         month_entries = self.data_store.get_entries_for_month(year, month)
         total_hours = self.data_store.get_total_hours_for_month(year, month)
 
-        # Build calendar with even larger cells to fill screen better
-        cell_width = 20
+        # Calculate cell width dynamically based on available widget width
+        # 7 columns + 8 separator chars (| between each col and on edges)
+        available_width = self.size.width or 100
+        cell_width = max(6, (available_width - 8) // 7)
         month_name = self.selected_date.strftime("%B %Y")
         lines = []
         lines.append(
